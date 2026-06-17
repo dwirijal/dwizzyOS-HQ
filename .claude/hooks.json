@@ -1,0 +1,24 @@
+{
+  "description": "Auto-log vault: every file operation is logged to dwizzyOS vault and committed to GitHub",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write",
+        "action": "log-created",
+        "command": "~/dwizzyOS-vault/vault-log.sh file_op created \"$CLAUDE_FILE_PATH\" 2>/dev/null; true"
+      },
+      {
+        "matcher": "Edit",
+        "action": "log-edited",
+        "command": "~/dwizzyOS-vault/vault-log.sh file_op edited \"$CLAUDE_FILE_PATH\" 2>/dev/null; true"
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "action": "auto-commit",
+        "command": "cd ~/dwizzyOS-vault && git add -A . && (git diff --cached --quiet || (git commit -m \"auto: vault update $(date '+%Y-%m-%d %H:%M')\" && git push origin main 2>/dev/null)) &>/dev/null; true"
+      }
+    ]
+  }
+}

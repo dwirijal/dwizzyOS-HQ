@@ -1,0 +1,7 @@
+{
+  "promptDelete": false,
+  "newFileLocation": "folder",
+  "newFileFolderPath": "daily",
+  "attachmentFolderPath": "attachments",
+  "showUnsupportedFiles": true
+}
