@@ -2,10 +2,10 @@
 # dwizzyOS Vault Auto-Commit Watcher
 # Watches the vault for changes and auto-commits to git, pushes to GitHub.
 #
-# Usage: nohup ~/dwizzyOS-vault/vault-watchd.sh &
+# Usage: nohup ~/dwizzyOS/dwizzyOS-vault/vault-watchd.sh &
 #        or run inside tmux session OS
 
-VAULT="$HOME/dwizzyOS-vault"
+VAULT="$HOME/dwizzyOS/dwizzyOS-vault"
 REMOTE="${DWIZZYOS_REMOTE:-git@github.com:dwirijal/dwizzyOS-HQ.git}"
 DEBOUNCE_SEC=5
 LOG="$VAULT/system/logs/watchd.log"

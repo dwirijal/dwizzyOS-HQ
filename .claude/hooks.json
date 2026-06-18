@@ -5,12 +5,12 @@
       {
         "matcher": "Write",
         "action": "log-created",
-        "command": "~/dwizzyOS-vault/vault-log.sh file_op created \"$CLAUDE_FILE_PATH\" 2>/dev/null; true"
+        "command": "~/dwizzyOS/dwizzyOS-vault/vault-log.sh file_op created \"$CLAUDE_FILE_PATH\" 2>/dev/null; true"
       },
       {
         "matcher": "Edit",
         "action": "log-edited",
-        "command": "~/dwizzyOS-vault/vault-log.sh file_op edited \"$CLAUDE_FILE_PATH\" 2>/dev/null; true"
+        "command": "~/dwizzyOS/dwizzyOS-vault/vault-log.sh file_op edited \"$CLAUDE_FILE_PATH\" 2>/dev/null; true"
       }
     ],
     "Stop": [

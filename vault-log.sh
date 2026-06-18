@@ -2,7 +2,7 @@
 # dwizzyOS Vault Logger — called by Claude Code hooks or manually.
 # Logs all operations: file changes, issues, plans, session events.
 
-VAULT="$HOME/dwizzyOS-vault"
+VAULT="$HOME/dwizzyOS/dwizzyOS-vault"
 DAILY="$VAULT/daily/$(date +%Y-%m-%d).md"
 
 ensure_daily() {

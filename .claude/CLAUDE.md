@@ -25,19 +25,19 @@ The vault watches all files in dwizzyOS and auto-commits changes. When you work,
 
 ```bash
 # Quick note in daily log
-~/dwizzyOS-vault/vault-log.sh note "what happened"
+~/dwizzyOS/dwizzyOS-vault/vault-log.sh note "what happened"
 
 # Log a command execution
-~/dwizzyOS-vault/vault-log.sh cmd "docker compose up -d"
+~/dwizzyOS/dwizzyOS-vault/vault-log.sh cmd "docker compose up -d"
 
 # Log an error
-~/dwizzyOS-vault/vault-log.sh err "description of error"
+~/dwizzyOS/dwizzyOS-vault/vault-log.sh err "description of error"
 
 # Log a success
-~/dwizzyOS-vault/vault-log.sh ok "task completed"
+~/dwizzyOS/dwizzyOS-vault/vault-log.sh ok "task completed"
 
 # Log session start/end
-~/dwizzyOS-vault/vault-log.sh session "session context"
+~/dwizzyOS/dwizzyOS-vault/vault-log.sh session "session context"
 ```
 
 ## Commit Convention
