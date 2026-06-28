@@ -45,6 +45,7 @@ class TribeConfig:
     issue_body: str
     commit_msg: str
     pr_title: str
+    base: str = "main"   # default branch name (chronos uses master)
 
 
 def _llm(model_id: str) -> LiteLlm:
@@ -78,7 +79,7 @@ def build_product_tribe(cfg: TribeConfig) -> SequentialAgent:
             f"You are the {cfg.name} backend engineer ({cfg.lang}). "
             f"Repo: {cfg.repo}. cwd: {cfg.cwd}. Steps, exact tool names:\n"
             f"1. Call `write_ci_workflow` with lang=\"{cfg.lang}\".\n"
-            f"2. Call `gh_create_branch` with branch=\"{cfg.branch}\" cwd=\"{cfg.cwd}\".\n"
+            f"2. Call `gh_create_branch` with branch=\"{cfg.branch}\" cwd=\"{cfg.cwd}\" base=\"{cfg.base}\".\n"
             f"3. Call `gh_commit_push` with message=\"{cfg.commit_msg}\" cwd=\"{cfg.cwd}\".\n"
             f"Report the branch name. Do NOT open the PR (QA's job)."
         ),
@@ -94,7 +95,7 @@ def build_product_tribe(cfg: TribeConfig) -> SequentialAgent:
             f"You are the {cfg.name} QA. Repo: {cfg.repo}. Steps:\n"
             f"1. Call `gh_create_pr` with title=\"{cfg.pr_title}\" "
             f"body=\"CI workflow + build verification\" repo=\"{cfg.repo}\" "
-            f"head=\"{cfg.branch}\".\n"
+            f"head=\"{cfg.branch}\" base=\"{cfg.base}\".\n"
             f"2. Call `gh_check_ci` with branch=\"{cfg.branch}\" repo=\"{cfg.repo}\".\n"
             f"End by reporting PASS or FAIL with the CI status."
         ),
@@ -127,20 +128,20 @@ PRODUCTS: dict[str, TribeConfig] = {
     "gebelin": TribeConfig(
         name="gebelin", product="infra/DB ops (PG+Supabase+Neon+Cloudflare)",
         repo="dwirijal/Gebelin", cwd="/home/dwizzy/dwizzyOS/Gebelin",
-        branch="ci/add-pg-health-check", lang="go",
-        issue_title="Add PG health-check CI",
-        issue_body="Add CI step verifying PG connectivity for infra ops.",
-        commit_msg="ci(gebelin): add pg health-check",
-        pr_title="ci: pg health-check",
+        branch="ci/add-compose-validate", lang="compose",
+        issue_title="Add docker-compose config validation CI",
+        issue_body="Add CI step validating docker-compose.yml (infra ops safety).",
+        commit_msg="ci(gebelin): add compose config validation CI",
+        pr_title="ci: compose config validation",
     ),
     "chronos": TribeConfig(
         name="chronos", product="timeseries data UI (time/astronomy/weather)",
         repo="dwirijal/chronos", cwd="/home/dwizzy/dwizzyOS/chronos",
-        branch="ci/add-bun-workflow", lang="nextjs-bun",
-        issue_title="Wire Bun CI (build)",
-        issue_body="Add GitHub Actions CI using bun for build verification.",
-        commit_msg="ci(chronos): add bun build CI workflow",
-        pr_title="ci: bun build workflow",
+        branch="ci/add-go-workflow", lang="go", base="master",
+        issue_title="Wire Go CI (vet+build)",
+        issue_body="Add GitHub Actions CI using go for vet+build verification.",
+        commit_msg="ci(chronos): add go build CI workflow",
+        pr_title="ci: go build workflow",
     ),
 }
 
