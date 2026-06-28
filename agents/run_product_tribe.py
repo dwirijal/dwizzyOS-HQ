@@ -46,7 +46,14 @@ def run(name: str) -> str:
 
     out = asyncio.run(_run())
     joined = " ".join(out)
-    print(f"[{name}] SMOKE:", "PASS ✅" if "PASS" in joined.upper() else "FAIL ❌")
+    # ponytail: verdict on the QA [GATE] tag (authoritative), not a "FAIL"
+    # substring — BLOCKED reasons legitimately contain "failed" and would
+    # false-positive. No [GATE] = no QA verdict = FAIL (incomplete DAG).
+    upper = joined.upper()
+    passed = "[GATE] PASS" in upper or "GATE PASS" in upper
+    failed = "[GATE] FAIL" in upper or "GATE FAIL" in upper
+    verdict = "PASS ✅" if passed and not failed else "FAIL ❌"
+    print(f"[{name}] SMOKE:", verdict)
     return joined
 
 
