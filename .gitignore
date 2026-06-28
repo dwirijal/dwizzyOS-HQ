@@ -1,7 +1,6 @@
-.obsidian/workspace.json
-.obsidian/workspace-mobile.json
-.obsidian/plugins/
-.obsidian/themes/
-.trash/
-.~lock.*
-*.tmp
+__pycache__/
+*.pyc
+.venv*/
+.env
+*.log
+.pytest_cache/
