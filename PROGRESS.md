@@ -45,3 +45,9 @@ context compactions. Read top-to-bottom; newest at bottom.
 - avicenna=go ✅ | jawatch=nextjs+bun ✅ | skills+tools ✅ | memory store ✅
 - /compact on high ctx ✅ | verify before exec ✅ | systematic debug ✅ (heimdall)
 - agents→issues/PR/branch/CI ✅ | leaders plan+delegate ✅ | soul+comms ✅
+
+## Hardening (iterative fixes during supervised runs)
+
+- **verdict logic** — smoke PASS/FAIL reads QA `[GATE]` tag, not "FAIL" substring (BLOCKED reasons contain "failed" → false positive). commit 56c528e
+- **CI template clobber** — dummy env baked into nextjs-bun CI template (write_ci_workflow regenerated bare ci.yml, overwriting merged fix). commit 38ff3fc
+- **systemd env** — `.secrets/systemd.env` (no `export`; systemd EnvironmentFile doesn't parse bash). OPENAI_API_KEY alias for LiteLLM.
