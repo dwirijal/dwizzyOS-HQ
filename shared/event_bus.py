@@ -55,14 +55,14 @@ def on(event: str, tribe: str, squad: str, agent: str, hook: Callable) -> None:
     _LISTENERS.setdefault(event, []).append((tribe, squad, agent, hook))
 
 
-def listen(events: list[str], handler: Callable[[str, dict], None],
+def listen(events: list[str] | None = None,
+           handler: Callable[[str, dict], None] | None = None,
            dsn: str | None = None) -> None:
-    """Block on PG LISTEN, dispatch matching events to handler(name, payload).
+    """Block on PG LISTEN, dispatch events.
 
-    psycopg3 delivers NOTIFY via the registered handler only when the connection
-    performs I/O — it does NOT auto-wake on server pushes. So we poll with a
-    trivial SELECT every 0.5s; the handler fires inline when a queued NOTIFY
-    is drained. Runs forever.
+    If handler given: dispatch matching events to it. Additionally, ALL events
+    (matching or not) are dispatched to on()-registered listeners via _dispatch,
+    so callers can use either pattern. Runs forever.
     """
     dsn = dsn or pg_dsn()
     conn = psycopg.connect(dsn, autocommit=True)
@@ -71,7 +71,8 @@ def listen(events: list[str], handler: Callable[[str, dict], None],
         try:
             msg = json.loads(notify.payload)
             name, payload = msg["event"], msg["payload"]
-            if name in events:
+            _dispatch(name, payload)  # always dispatch to on() listeners
+            if handler and (events is None or name in events):
                 handler(name, payload)
         except Exception:
             pass  # malformed payload: drop, keep listening
