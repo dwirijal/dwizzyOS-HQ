@@ -46,11 +46,48 @@ class TribeConfig:
     commit_msg: str
     pr_title: str
     base: str = "main"   # default branch name (chronos uses master)
+    # ECC skills to apply per role in this tribe (injected into instructions).
+    # Agents reference these so they follow battle-tested patterns, not guess.
+    skills: dict[str, list[str]] = None  # role -> skill names
 
 
 def _llm(model_id: str) -> LiteLlm:
     key = ROUTER_API_KEY or os.environ.get("OPENAI_API_KEY", "")
     return LiteLlm(model=f"openai/{model_id}", api_base=ROUTER_BASE_URL, api_key=key)
+
+
+# ECC skill map per (lang, role). Agents get tribe+role-appropriate skills
+# injected into their instruction so they follow proven patterns, not improvise.
+# Source: ~/.claude/plugins/marketplaces/ecc/skills/
+SKILLS = {
+    "go": {
+        "backend": ["golang-patterns", "golang-testing", "api-design"],
+        "qa": ["golang-testing", "e2e-testing", "ai-regression-testing"],
+        "lead": ["plan-orchestrate", "agentic-engineering", "github-ops"],
+        "devops": ["docker-patterns", "github-ops"],
+    },
+    "nextjs-bun": {
+        "frontend": ["frontend-patterns", "frontend-design-direction", "frontend-a11y", "bun-runtime"],
+        "backend": ["bun-runtime", "api-design", "backend-patterns"],
+        "qa": ["e2e-testing", "browser-qa", "ai-regression-testing"],
+        "lead": ["plan-orchestrate", "agentic-engineering", "github-ops"],
+    },
+    "compose": {
+        "devops": ["docker-patterns", "homelab-network-setup"],
+        "backend": ["backend-patterns", "api-design"],
+        "qa": ["e2e-testing"],
+        "lead": ["plan-orchestrate", "agentic-engineering", "github-ops"],
+    },
+}
+
+
+def _skill_block(lang: str, role: str) -> str:
+    """Render the skill list as an instruction snippet for an agent."""
+    skills = (SKILLS.get(lang, {}) or {}).get(role, [])
+    if not skills:
+        return ""
+    return ("\nApply these ECC skills (proven patterns, do not improvise): "
+            + ", ".join(skills) + ".\n")
 
 
 def build_product_tribe(cfg: TribeConfig) -> SequentialAgent:
@@ -62,6 +99,7 @@ def build_product_tribe(cfg: TribeConfig) -> SequentialAgent:
         name=f"{cfg.name}_lead",
         model=_llm(MODEL_LEAD),
         instruction=(
+            f"{_skill_block(cfg.lang, 'lead')}"
             f"You are the {cfg.name} tribe lead (product: {cfg.product}). "
             f"Make a short plan, then open a GitHub issue on repo \"{cfg.repo}\" "
             f"titled \"{cfg.issue_title}\" with body \"{cfg.issue_body}\". "
@@ -75,7 +113,7 @@ def build_product_tribe(cfg: TribeConfig) -> SequentialAgent:
         name=f"{cfg.name}_backend",
         model=_llm(MODEL_WORKER),
         instruction=(
-            f"{CHAPTER_BACKEND}\n"
+            f"{CHAPTER_BACKEND}\n{_skill_block(cfg.lang, 'backend')}"
             f"You are the {cfg.name} backend engineer ({cfg.lang}). "
             f"Repo: {cfg.repo}. cwd: {cfg.cwd}. Steps, exact tool names:\n"
             f"1. Call `write_ci_workflow` with lang=\"{cfg.lang}\".\n"
@@ -91,7 +129,7 @@ def build_product_tribe(cfg: TribeConfig) -> SequentialAgent:
         name=f"{cfg.name}_qa",
         model=_llm(MODEL_WORKER),
         instruction=(
-            f"{CHAPTER_QA}\n"
+            f"{CHAPTER_QA}\n{_skill_block(cfg.lang, 'qa')}"
             f"You are the {cfg.name} QA. Repo: {cfg.repo}. Steps:\n"
             f"1. Call `gh_create_pr` with title=\"{cfg.pr_title}\" "
             f"body=\"CI workflow + build verification\" repo=\"{cfg.repo}\" "
