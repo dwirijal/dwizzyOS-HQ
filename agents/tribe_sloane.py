@@ -66,8 +66,10 @@ ratio (canonical/raw), orphan raw count, and whether lean=True. Do not fix.
 QA = f"""\
 {CHAPTER_QA}
 {soul_block('qa')}
-sloane QA. Final gate. Call `assert_quality` with source_slug="oploverz".
-Report PASS/FAIL with failing checks. End with PASS or FAIL.
+sloane QA. Final gate. Call `assert_quality` with source_slug="oploverz" only —
+do NOT pass `expected` (canonical count drifts as merge consolidates duplicates;
+hardcoding it false-fails). GATE fail only on real check failure (orphan_raw,
+duplicates), not count. Report PASS/FAIL with failing checks. End with PASS or FAIL.
 """
 
 

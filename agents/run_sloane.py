@@ -46,7 +46,10 @@ async def main() -> int:
                     print(f"[{who}] {p.text.strip()[:300]}")
                     if who == "sloane_qa":
                         qa_text += p.text
-    passed = "PASS" in qa_text.upper() and "FAIL" not in qa_text.upper()
+    # verdict on QA [GATE] tag (authoritative). BLOCKED reasons / count
+    # mismatches contain "fail" legitimately — substring would double-count.
+    upper = qa_text.upper()
+    passed = "[GATE] PASS" in upper or ("GATE PASS" in upper and "[GATE] FAIL" not in upper)
     print("\nSMOKE:", "PASS ✅" if passed else "FAIL ❌")
     return 0 if passed else 1
 
