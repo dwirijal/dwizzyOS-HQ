@@ -11,6 +11,7 @@ from google.adk.tools import FunctionTool
 
 DEFAULT_AVICENNA_DIR = "/home/dwizzy/dwizzyOS/avicenna"
 DEFAULT_SLOANE_DIR = "/home/dwizzy/dwizzyOS/sloane"
+DEFAULT_JAWATCH_DIR = "/home/dwizzy/dwizzyOS/jawatch"
 
 
 def _sh(cmd: list[str], cwd: str | None = None) -> str:
@@ -27,12 +28,23 @@ def gh_create_issue(title: str, body: str, repo: str) -> dict:
 
 
 def gh_create_branch(branch: str, cwd: str = DEFAULT_AVICENNA_DIR, base: str = "main") -> dict:
-    """Create + checkout a branch off base in the local repo (cwd). Idempotent."""
+    """Create + checkout a branch off base in the local repo (cwd). Idempotent.
+
+    Auto-stashes any dirty working tree (build artifacts like next-env.d.ts)
+    before switching, restores after. Build-generated files would otherwise
+    block checkout.
+    """
+    # stash build artifacts / uncommitted edits so checkout doesn't collide
+    import subprocess
+    stash_out = subprocess.run(["git", "stash", "-u"], cwd=cwd,
+                               capture_output=True, text=True).stdout
+    had_stash = "Saved working directory" in stash_out
     _sh(["git", "checkout", base], cwd=cwd)
     # drop stale local branch of same name (re-runs are common in the 24/7 loop)
-    import subprocess
     subprocess.run(["git", "branch", "-D", branch], cwd=cwd, capture_output=True, text=True)
     _sh(["git", "checkout", "-b", branch], cwd=cwd)
+    if had_stash:
+        subprocess.run(["git", "stash", "pop"], cwd=cwd, capture_output=True, text=True)
     return {"branch": branch, "cwd": cwd}
 
 
@@ -89,28 +101,35 @@ gh_pr_tool = FunctionTool(func=gh_create_pr)
 gh_ci_tool = FunctionTool(func=gh_check_ci)
 
 
-def write_ci_workflow(cwd: str = DEFAULT_AVICENNA_DIR) -> dict:
-    """Write a Go CI workflow (.github/workflows/ci.yml): build + vet.
+def write_ci_workflow(cwd: str = DEFAULT_AVICENNA_DIR, lang: str = "go") -> dict:
+    """Write a CI workflow (.github/workflows/ci.yml) for the given lang.
 
+    lang: go (vet+build) | nextjs-bun (bun install+build+lint).
     Forces squads to wire CI (a required GH feature). Idempotent.
     """
     p = Path(cwd) / ".github" / "workflows" / "ci.yml"
     p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(
-        "name: ci\n"
-        "on: [push, pull_request]\n"
-        "jobs:\n"
-        "  build:\n"
-        "    runs-on: ubuntu-latest\n"
-        "    steps:\n"
-        "      - uses: actions/checkout@v4\n"
-        "      - uses: actions/setup-go@v5\n"
-        "        with:\n"
-        "          go-version: '1.26'\n"
-        "      - run: go vet ./...\n"
-        "      - run: go build ./cmd/server\n"
-    )
-    return {"written": str(p)}
+    if lang == "go":
+        body = (
+            "name: ci\non: [push, pull_request]\njobs:\n  build:\n"
+            "    runs-on: ubuntu-latest\n    steps:\n"
+            "      - uses: actions/checkout@v4\n"
+            "      - uses: actions/setup-go@v5\n        with:\n          go-version: '1.26'\n"
+            "      - run: go vet ./...\n"
+            "      - run: go build ./cmd/server\n"
+        )
+    else:  # nextjs-bun
+        body = (
+            "name: ci\non: [push, pull_request]\njobs:\n  build:\n"
+            "    runs-on: ubuntu-latest\n    steps:\n"
+            "      - uses: actions/checkout@v4\n"
+            "      - uses: oven-sh/setup-bun@v2\n"
+            "      - run: bun install\n"
+            "      - run: bun run build\n"
+            "      - run: bun run lint || true\n"
+        )
+    p.write_text(body)
+    return {"written": str(p), "lang": lang}
 
 
 ci_workflow_tool = FunctionTool(func=write_ci_workflow)
