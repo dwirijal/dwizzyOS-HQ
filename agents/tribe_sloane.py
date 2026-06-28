@@ -1,12 +1,12 @@
-"""Tribe sloane: 1 squad, sequential DAG.
+"""Tribe sloane (1 tribe) with 3 squads as a sequential DAG:
+  squad_scraper   -> scraper_agent (fetch+write raw+merge)
+  squad_processor -> processor_agent (enrich mal_id via Jikan)
+  squad_store     -> store_agent (governance/health)
+shared: lead (decompose) + qa (final gate)
 
-Pipeline: lead (decompose) -> backend-py (fetch+write) -> qa (assert).
-Each agent has a narrow scope + tools. The LLM orchestrates; tools do the
-deterministic work. Tribe memory is locked to tribe_lead + squad_lead via
-GroupMemoryService RBAC.
-
-DevOps agent is YAGNI for the smoke milestone — add when the squad ships
-real scrapers needing docker/cron wiring.
+Lazy activation: 1 worker per squad + shared lead/qa = 5 agents, not 9.
+Scale to lead+worker+qa per squad when each squad's job is heavy enough.
+Chapter backend/QA standards injected where relevant.
 """
 from __future__ import annotations
 import os
@@ -14,76 +14,67 @@ import os
 from google.adk.agents import Agent, SequentialAgent
 from google.adk.models.lite_llm import LiteLlm
 
-from sloane.agents.tools import fetch_tool, write_tool, assert_tool
+from shared.chapters import CHAPTER_BACKEND, CHAPTER_QA
 from shared.config import ROUTER_BASE_URL, ROUTER_API_KEY, MODEL_LEAD, MODEL_WORKER
+from sloane.agents.tools import fetch_tool, write_tool, assert_tool
+from sloane.agents.squad_tools import enrich_tool, store_health_tool
 
-# suppress litellm telemetry noise (file-descriptor warnings)
 try:
     import litellm
-    litellm.success_callback = []
-    litellm.failure_callback = []
-    litellm.set_verbose = False
+    litellm.success_callback = []; litellm.failure_callback = []; litellm.set_verbose = False
 except Exception:
     pass
 
 
 def _llm(model_id: str) -> LiteLlm:
     key = ROUTER_API_KEY or os.environ.get("OPENAI_API_KEY", "")
-    return LiteLlm(
-        model=f"openai/{model_id}",
-        api_base=ROUTER_BASE_URL,
-        api_key=key,
-    )
+    return LiteLlm(model=f"openai/{model_id}", api_base=ROUTER_BASE_URL, api_key=key)
 
 
-LEAD_INSTRUCTION = """\
-You are the sloane squad lead. Tribe: sloane (data ingestion for dwizzyOS).
-Decompose the task into steps, then hand off. For the smoke task:
-  1. backend fetches a source, writes entities to PG.
-  2. qa asserts data quality.
-State the source slug to use (oploverz), then finish. One source for the smoke.
-Scope: orchestration only. Do not call any tools yourself.
+LEAD = """\
+You are the sloane tribe lead (1 tribe, 3 squads: scraper/processor/store).
+Decompose: scraper fetches a source; processor enriches canonicals with MAL IDs;
+store checks DB health. For this run use source "oploverz". Hand off in order.
+Scope: orchestration only, no tools.
 """
 
-BACKEND_INSTRUCTION = """\
-You are the sloane backend engineer (Python). Scope: scraper + DB write ONLY.
-Call the tool named `fetch_source` with source_slug="oploverz".
-Then call the tool named `write_entities_tool` with the returned entities list.
-Do NOT assert — that is QA's job. Report the counts from write_entities_tool.
+SCRAPER = f"""\
+{CHAPTER_BACKEND}
+squad_scraper. Scope: fetch source + write raw + merge to canonical.
+1. Call `fetch_source` with source_slug="oploverz".
+2. Call `write_entities_tool` with the returned entities.
+Report raw/canonical counts. Do NOT enrich or health-check (other squads).
 """
 
-QA_INSTRUCTION = """\
-You are the sloane QA engineer. Scope: data quality gate ONLY.
-Call the tool named `assert_quality` with source_slug="oploverz".
-Report exactly "PASS" or "FAIL" with the failing check names. If FAIL, state
-what must be fixed (do not fix it). End with the single word PASS or FAIL.
+PROCESSOR = f"""\
+{CHAPTER_BACKEND}
+squad_processor. Scope: enrichment ONLY. Give canonicals authoritative MAL IDs.
+Call `enrich_pending_canonicals` with limit=5. Report how many mal_ids resolved.
+"""
+
+STORE = f"""\
+{CHAPTER_BACKEND}
+squad_store. Scope: DB governance/lean. Call `store_health_check`. Report the
+ratio (canonical/raw), orphan raw count, and whether lean=True. Do not fix.
+"""
+
+QA = f"""\
+{CHAPTER_QA}
+sloane QA. Final gate. Call `assert_quality` with source_slug="oploverz".
+Report PASS/FAIL with failing checks. End with PASS or FAIL.
 """
 
 
 def build_tribe_sloane() -> SequentialAgent:
-    """Construct the sloane squad as a sequential DAG."""
-    lead = Agent(
-        name="sloane_lead",
-        model=_llm(MODEL_LEAD),
-        instruction=LEAD_INSTRUCTION,
-        description="sloane squad lead: decompose + handoff",
-    )
-    backend = Agent(
-        name="sloane_backend_py",
-        model=_llm(MODEL_WORKER),
-        instruction=BACKEND_INSTRUCTION,
-        description="backend: fetch + write",
-        tools=[fetch_tool, write_tool],
-    )
-    qa = Agent(
-        name="sloane_qa",
-        model=_llm(MODEL_WORKER),
-        instruction=QA_INSTRUCTION,
-        description="QA: assert data quality",
-        tools=[assert_tool],
-    )
-    return SequentialAgent(
-        name="tribe_sloane",
-        sub_agents=[lead, backend, qa],
-        description="sloane tribe squad: lead->backend->qa sequential pipeline",
-    )
+    return SequentialAgent(name="tribe_sloane", sub_agents=[
+        Agent(name="sloane_lead", model=_llm(MODEL_LEAD), instruction=LEAD,
+              description="tribe lead: decompose across 3 squads"),
+        Agent(name="sloane_scraper", model=_llm(MODEL_WORKER), instruction=SCRAPER,
+              description="squad_scraper: fetch+write+merge", tools=[fetch_tool, write_tool]),
+        Agent(name="sloane_processor", model=_llm(MODEL_WORKER), instruction=PROCESSOR,
+              description="squad_processor: enrich mal_id", tools=[enrich_tool]),
+        Agent(name="sloane_store", model=_llm(MODEL_WORKER), instruction=STORE,
+              description="squad_store: DB governance", tools=[store_health_tool]),
+        Agent(name="sloane_qa", model=_llm(MODEL_WORKER), instruction=QA,
+              description="QA: final quality gate", tools=[assert_tool]),
+    ], description="tribe sloane: lead->scraper->processor->store->qa")

@@ -3,10 +3,21 @@
 -- canonical_entities: 1 row per real-world title. Lean, consumer-facing, forever.
 -- entity_source_links: N raw -> 1 canonical. external_ids: multi-registry IDs (MAL/AniList/OMDB/TVDB).
 
--- 1. rename existing table to raw (was canonical_entities, holds raw per-source rows)
-ALTER TABLE canonical_entities RENAME TO raw_entities;
-ALTER INDEX IF EXISTS idx_canonical_kind RENAME TO idx_raw_kind;
-ALTER INDEX IF EXISTS idx_canonical_payload_gin RENAME TO idx_raw_payload_gin;
+-- 1. rename existing canonical_entities (from 001) to raw_entities. Idempotent:
+-- skip if raw_entities already exists (re-runs after first apply).
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='canonical_entities')
+     AND NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='raw_entities') THEN
+    ALTER TABLE canonical_entities RENAME TO raw_entities;
+    ALTER INDEX IF EXISTS idx_canonical_kind RENAME TO idx_raw_kind;
+    ALTER INDEX IF EXISTS idx_canonical_payload_gin RENAME TO idx_raw_payload_gin;
+  END IF;
+END $$;
+
+-- raw indexes (moved here from 001 for idempotency; 001 is now a no-op)
+CREATE INDEX IF NOT EXISTS idx_raw_kind ON raw_entities (kind);
+CREATE INDEX IF NOT EXISTS idx_raw_payload_gin ON raw_entities USING gin (payload);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_raw_dedup ON raw_entities (source, external_id);
 
 -- 2. canonical (merged truth). dedup by kind+normalized_title.
 CREATE TABLE IF NOT EXISTS canonical_entities (
