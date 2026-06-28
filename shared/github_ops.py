@@ -137,7 +137,17 @@ def write_ci_workflow(cwd: str = DEFAULT_AVICENNA_DIR, lang: str = "go") -> dict
     elif lang == "nextjs-bun":
         body = (
             "name: ci\non: [push, pull_request]\njobs:\n  build:\n"
-            "    runs-on: ubuntu-latest\n    steps:\n"
+            "    runs-on: ubuntu-latest\n    env:\n"
+            "      # dummy build-time env: Next apps that read config at import-\n"
+            "      # time (e.g. lib/auth/config requireEnv) throw during static\n"
+            "      # page-data collection. Routes are runtime-dynamic; real values\n"
+            "      # ship via Vercel env in prod.\n"
+            "      SUPABASE_URL: https://dummy.supabase.co\n"
+            "      SUPABASE_PUBLISHABLE_KEY: dummy_publishable_key_for_ci\n"
+            "      SITE_URL: https://dummy.example\n"
+            "      AUTH_SHARED_COOKIE_DOMAIN: example.com\n"
+            "      AUTH_REDIRECT_SECRET: dummy_redirect_secret_for_ci_at_least_32_chars\n"
+            "    steps:\n"
             "      - uses: actions/checkout@v4\n"
             "      - uses: oven-sh/setup-bun@v2\n"
             "      - run: bun install\n"
