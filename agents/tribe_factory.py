@@ -21,6 +21,7 @@ from google.adk.tools.function_tool import FunctionTool
 
 from shared.chapters import CHAPTER_BACKEND, CHAPTER_QA
 from shared.souls import soul_block
+from shared.mcp_tools import context7_toolset
 from shared.github_ops import (
     gh_issue_tool, gh_branch_tool, gh_commit_push, gh_pr_tool, gh_ci_tool,
     write_ci_workflow,
@@ -123,7 +124,7 @@ def build_product_tribe(cfg: TribeConfig) -> SequentialAgent:
             f"Report the branch name. Do NOT open the PR (QA's job)."
         ),
         tools=[FunctionTool(write_ci_workflow), gh_branch_tool,
-               FunctionTool(gh_commit_push)],
+               FunctionTool(gh_commit_push), context7_toolset()],
     )
 
     qa = Agent(
