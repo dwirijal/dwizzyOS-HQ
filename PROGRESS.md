@@ -32,7 +32,7 @@ context compactions. Read top-to-bottom; newest at bottom.
 - [x] heimdall CI green ✅ (dummy env for build-time config, PR#6 merged)
 - [x] Wire MCP servers into agents ✅ (Context7 docs via McpToolset, commit 3aa2e2d)
 - [x] 24/7 supervisor ✅ (systemd user timer dwizzyos-tribes.timer, 17min cycle, linger on)
-  - `agents/run_all_tribes.py` cycles all 4 product tribes (jawatch/heimdall/gebelin/chronos)
+  - `agents/run_all_tribes.py` cycles ALL 6 tribes: factory 4 (jawatch/heimdall/gebelin/chronos) in-process + legacy 2 (avicenna/sloane) as subprocess
   - env: `.secrets/systemd.env` (no `export` — systemd EnvironmentFile doesn't parse bash export)
   - logs: `journalctl --user -u dwizzyos-tribes.service`
   - STOP: `systemctl --user stop dwizzyos-tribes.timer`
