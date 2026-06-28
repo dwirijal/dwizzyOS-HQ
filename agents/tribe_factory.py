@@ -137,7 +137,10 @@ def build_product_tribe(cfg: TribeConfig) -> SequentialAgent:
             f"body=\"CI workflow + build verification\" repo=\"{cfg.repo}\" "
             f"head=\"{cfg.branch}\" base=\"{cfg.base}\".\n"
             f"2. Call `gh_check_ci` with branch=\"{cfg.branch}\" repo=\"{cfg.repo}\".\n"
-            f"End by reporting PASS or FAIL with the CI status."
+            f"End with EXACTLY one terminal line: `[GATE] pass ci` if CI "
+            f"conclusion=success (or no runs yet), else `[GATE] fail ci`. "
+            f"This [GATE] line is the verdict the supervisor parses — no other "
+            f"text after it."
         ),
         tools=[gh_pr_tool, gh_ci_tool],
     )
