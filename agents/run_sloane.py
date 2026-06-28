@@ -17,8 +17,8 @@ from shared.config import ROUTER_API_KEY
 from shared.memory_service import GroupMemoryService
 
 TASK = (
-    "Smoke task for tribe sloane: ingest the 'stub-anime' source end-to-end "
-    "(fetch, write to PG) then run QA. Use stub-anime."
+    "Smoke task for tribe sloane: ingest the 'oploverz' source end-to-end "
+    "(fetch, write to PG) then run QA. Use oploverz."
 )
 
 
