@@ -22,15 +22,15 @@ context compactions. Read top-to-bottom; newest at bottom.
 |-------|------|----|----|
 | jawatch | dwirijal/Jawatch | ✅ green | bun build |
 | avicenna | dwirijal/avicenna | ✅ green | go vet+build |
-| heimdall | dwirijal/heimdall | 🔧 fixing | dummy env for build-time config |
+| heimdall | dwirijal/heimdall | ✅ green | PR#6 merged; dummy env for build-time config |
 | gebelin | (compose) | ✅ | docker compose config -q |
 | chronos | dwirijal/chronos | ✅ green | go |
 | sloane | dwirijal/sloane | ✅ | python |
 
 ## Pending (next iterations)
 
-- [ ] heimdall CI green confirmation (monitor running)
-- [ ] Wire MCP servers into agents (user: "agents bisa memakai skill, tools, mcp")
+- [x] heimdall CI green ✅ (dummy env for build-time config, PR#6 merged)
+- [x] Wire MCP servers into agents ✅ (Context7 docs via McpToolset, commit 3aa2e2d)
 - [ ] 24/7 supervisor (systemd/pm2) for bus listener restarts
 - [ ] OMDB/TVDB/AniList registry enrichment (deferred)
 - [ ] Scale squads per tribe (1 feature = 1 squad; multi-feature products split)
