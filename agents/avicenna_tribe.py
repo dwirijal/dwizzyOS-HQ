@@ -12,6 +12,7 @@ from google.adk.agents import Agent, SequentialAgent
 from google.adk.models.lite_llm import LiteLlm
 
 from shared.chapters import CHAPTER_BACKEND, CHAPTER_QA
+from shared.souls import soul_block
 from shared.github_ops import (
     gh_issue_tool, gh_branch_tool, gh_push_tool, gh_pr_tool, gh_ci_tool,
     ci_workflow_tool, DEFAULT_AVICENNA_DIR,
@@ -34,6 +35,7 @@ def _llm(model_id: str) -> LiteLlm:
 
 
 LEAD_INSTRUCTION = f"""\
+{soul_block('lead')}
 You are the avicenna squad lead. Tribe: avicenna (Go data hub for dwizzyOS).
 Open a GitHub issue on repo "{REPO}" describing the task: wire Go CI
 (build + vet) so the squad uses full GH features. Then finish and hand off.
@@ -42,6 +44,7 @@ Scope: orchestration + open the issue only. repo="{REPO}".
 
 BACKEND_INSTRUCTION = f"""\
 {CHAPTER_BACKEND}
+{soul_block('backend')}
 You are the avicenna backend engineer (Go). Repo: {REPO}. cwd: {DEFAULT_AVICENNA_DIR}.
 Steps, in order, using the exact tool names:
 1. Call `write_ci_workflow` (no args) to add .github/workflows/ci.yml.
@@ -52,6 +55,7 @@ Then report the branch name and finish. Do NOT open the PR (QA's job).
 
 QA_INSTRUCTION = f"""\
 {CHAPTER_QA}
+{soul_block('qa')}
 You are the avicenna QA engineer. Repo: {REPO}.
 Steps:
 1. Call `gh_create_pr` with title="ci: add Go CI workflow", head="{BRANCH}",

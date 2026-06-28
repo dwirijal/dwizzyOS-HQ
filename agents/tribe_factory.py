@@ -20,6 +20,7 @@ from google.adk.models.lite_llm import LiteLlm
 from google.adk.tools.function_tool import FunctionTool
 
 from shared.chapters import CHAPTER_BACKEND, CHAPTER_QA
+from shared.souls import soul_block
 from shared.github_ops import (
     gh_issue_tool, gh_branch_tool, gh_commit_push, gh_pr_tool, gh_ci_tool,
     write_ci_workflow,
@@ -99,7 +100,7 @@ def build_product_tribe(cfg: TribeConfig) -> SequentialAgent:
         name=f"{cfg.name}_lead",
         model=_llm(MODEL_LEAD),
         instruction=(
-            f"{_skill_block(cfg.lang, 'lead')}"
+            f"{_skill_block(cfg.lang, 'lead')}{soul_block('lead')}"
             f"You are the {cfg.name} tribe lead (product: {cfg.product}). "
             f"Make a short plan, then open a GitHub issue on repo \"{cfg.repo}\" "
             f"titled \"{cfg.issue_title}\" with body \"{cfg.issue_body}\". "
@@ -113,7 +114,7 @@ def build_product_tribe(cfg: TribeConfig) -> SequentialAgent:
         name=f"{cfg.name}_backend",
         model=_llm(MODEL_WORKER),
         instruction=(
-            f"{CHAPTER_BACKEND}\n{_skill_block(cfg.lang, 'backend')}"
+            f"{CHAPTER_BACKEND}\n{_skill_block(cfg.lang, 'backend')}{soul_block('backend')}"
             f"You are the {cfg.name} backend engineer ({cfg.lang}). "
             f"Repo: {cfg.repo}. cwd: {cfg.cwd}. Steps, exact tool names:\n"
             f"1. Call `write_ci_workflow` with lang=\"{cfg.lang}\".\n"
@@ -129,7 +130,7 @@ def build_product_tribe(cfg: TribeConfig) -> SequentialAgent:
         name=f"{cfg.name}_qa",
         model=_llm(MODEL_WORKER),
         instruction=(
-            f"{CHAPTER_QA}\n{_skill_block(cfg.lang, 'qa')}"
+            f"{CHAPTER_QA}\n{_skill_block(cfg.lang, 'qa')}{soul_block('qa')}"
             f"You are the {cfg.name} QA. Repo: {cfg.repo}. Steps:\n"
             f"1. Call `gh_create_pr` with title=\"{cfg.pr_title}\" "
             f"body=\"CI workflow + build verification\" repo=\"{cfg.repo}\" "

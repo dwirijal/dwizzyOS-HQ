@@ -15,6 +15,7 @@ from google.adk.agents import Agent, SequentialAgent
 from google.adk.models.lite_llm import LiteLlm
 
 from shared.chapters import CHAPTER_BACKEND, CHAPTER_QA
+from shared.souls import soul_block
 from shared.config import ROUTER_BASE_URL, ROUTER_API_KEY, MODEL_LEAD, MODEL_WORKER
 from sloane.agents.tools import fetch_tool, write_tool, assert_tool
 from sloane.agents.squad_tools import enrich_tool, store_health_tool
@@ -31,7 +32,8 @@ def _llm(model_id: str) -> LiteLlm:
     return LiteLlm(model=f"openai/{model_id}", api_base=ROUTER_BASE_URL, api_key=key)
 
 
-LEAD = """\
+LEAD = f"""\
+{soul_block('lead')}
 You are the sloane tribe lead (1 tribe, 3 squads: scraper/processor/store).
 Decompose: scraper fetches a source; processor enriches canonicals with MAL IDs;
 store checks DB health. For this run use source "oploverz". Hand off in order.
@@ -40,6 +42,7 @@ Scope: orchestration only, no tools.
 
 SCRAPER = f"""\
 {CHAPTER_BACKEND}
+{soul_block('scraper')}
 squad_scraper. Scope: fetch source + write raw + merge to canonical.
 1. Call `fetch_source` with source_slug="oploverz".
 2. Call `write_entities_tool` with the returned entities.
@@ -48,18 +51,21 @@ Report raw/canonical counts. Do NOT enrich or health-check (other squads).
 
 PROCESSOR = f"""\
 {CHAPTER_BACKEND}
+{soul_block('processor')}
 squad_processor. Scope: enrichment ONLY. Give canonicals authoritative MAL IDs.
 Call `enrich_pending_canonicals` with limit=5. Report how many mal_ids resolved.
 """
 
 STORE = f"""\
 {CHAPTER_BACKEND}
+{soul_block('store')}
 squad_store. Scope: DB governance/lean. Call `store_health_check`. Report the
 ratio (canonical/raw), orphan raw count, and whether lean=True. Do not fix.
 """
 
 QA = f"""\
 {CHAPTER_QA}
+{soul_block('qa')}
 sloane QA. Final gate. Call `assert_quality` with source_slug="oploverz".
 Report PASS/FAIL with failing checks. End with PASS or FAIL.
 """
