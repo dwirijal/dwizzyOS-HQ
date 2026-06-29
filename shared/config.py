@@ -49,8 +49,8 @@ def pg_dsn() -> str:
 # 9router as the LLM backend for all agents (OpenAI-compatible).
 ROUTER_BASE_URL = os.environ.get("ROUTER_BASE_URL", "http://192.168.100.6:20128/v1")
 ROUTER_API_KEY = os.environ.get("ROUTER_API_KEY", "")  # set in env, not committed
-MODEL_LEAD = "R9/9router/AGENTS-LEAD"   # Custom high-thinking model
-MODEL_WORKER = "R9/9router/AGENTS"      # Custom worker model
+MODEL_LEAD = "AGENTS-LEAD"   # Custom high-thinking model (9router)
+MODEL_WORKER = "AGENTS"      # Custom worker model (9router)
 
 # Round-robin embedding models
 EMBEDDING_MODELS = [
@@ -79,7 +79,7 @@ MODELS_HIGH = {
     "openrouter/nvidia/nemotron-3-ultra-550b-a55b",
     "R9/9router/combo-qwen3.6-max", "R9/9router/combo-qwen3.7-max", "R9/9router/combo-qwen-deepseek", "R9/9router/combo-qwen-kimi-glm-deepseek",
     "R9/9router/R9/deepseek-v4-pro", "R9/9router/R9/glm-5.2", "R9/9router/R9/kimi-k2.7-code", "R9/9router/R9/qwen3.7-max",
-    "R9/9router/AGENTS-LEAD"
+    "R9/9router/AGENTS-LEAD", "AGENTS-LEAD"
 }
 
 def is_high_capability(model_id: str) -> bool:
