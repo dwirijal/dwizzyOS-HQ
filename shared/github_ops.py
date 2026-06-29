@@ -88,24 +88,27 @@ def gh_create_pr(title: str, body: str, repo: str, head: str, base: str = "main"
 def gh_check_ci(branch: str, repo: str) -> dict:
     """Check CI status for branch on repo. Returns {checks, passing}.
 
-    Uses the Actions runs REST API (works with limited PAT scopes that can't
-    read GraphQL check rollups). A missing/failed GraphQL rollup must NOT
-    surface as a CI fail — only actual job conclusions do.
+    Polls the Actions runs REST API until the latest run reaches a terminal
+    state, then reads its conclusion. Blocks so QA gets a final verdict
+    instead of racing an in_progress run. No-run-yet = pass.
     """
-    import subprocess
-    # REST: latest workflow run on the branch → conclusion.
-    r = subprocess.run(
-        ["gh", "run", "list", "--repo", repo, "--branch", branch,
-         "--limit", "1", "--json", "conclusion,status,name", "-q", ".[0]"],
-        capture_output=True, text=True,
-    )
-    if r.returncode != 0 or not r.stdout.strip():
-        return {"branch": branch, "checks": "(no runs yet)", "passing": True, "note": "no CI run yet"}
-    import json
-    run = json.loads(r.stdout)
+    import subprocess, json, time
+    run = {}
+    for _ in range(60):  # up to ~10min
+        r = subprocess.run(
+            ["gh", "run", "list", "--repo", repo, "--branch", branch,
+             "--limit", "1", "--json", "conclusion,status,name", "-q", ".[0]"],
+            capture_output=True, text=True,
+        )
+        if r.returncode != 0 or not r.stdout.strip():
+            return {"branch": branch, "checks": "(no runs yet)", "passing": True, "note": "no CI run yet"}
+        run = json.loads(r.stdout)
+        if run.get("status") == "completed":
+            break
+        time.sleep(10)
     conclusion = run.get("conclusion")
     status = run.get("status")
-    passing = conclusion == "success" or (status in ("in_progress", "queued") and conclusion is None)
+    passing = conclusion == "success"
     return {"branch": branch, "run": run.get("name"), "status": status,
             "conclusion": conclusion, "passing": passing}
 

@@ -46,8 +46,9 @@ BACKEND_INSTRUCTION = f"""\
 {CHAPTER_BACKEND}
 {soul_block('backend')}
 You are the avicenna backend engineer (Go). Repo: {REPO}. cwd: {DEFAULT_AVICENNA_DIR}.
-Steps, in order, using the exact tool names:
-1. Call `write_ci_workflow` (no args) to add .github/workflows/ci.yml.
+Steps, in order, using the EXACT tool names below — these are the ONLY tools
+available. There is no `Write`/`write`/`edit` tool; do not call one.
+1. Call `write_ci_workflow` (no args — defaults to lang=go) to add .github/workflows/ci.yml.
 2. Call `gh_create_branch` with branch="{BRANCH}".
 3. Call `gh_commit_push` with message="ci(avicenna): add go build+vet workflow".
 Then report the branch name and finish. Do NOT open the PR (QA's job).
