@@ -26,7 +26,17 @@ LEGACY_TRIBES = [
 ]
 
 
+def _within_hours() -> bool:
+    """Agents work 06:00-22:00 local. Outside → skip cycle, exit 0."""
+    import time
+    # tm_gmtoff-aware: localtime hour in system TZ.
+    return 6 <= time.localtime().tm_hour < 22
+
+
 def main() -> int:
+    if not _within_hours():
+        print("outside work hours (06-22) — skipping cycle", flush=True)
+        return 0
     failures: list[str] = []
     # factory tribes (in-process)
     for name in PRODUCTS:
