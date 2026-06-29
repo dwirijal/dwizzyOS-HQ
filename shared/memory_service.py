@@ -58,6 +58,11 @@ class GroupMemoryService(BaseMemoryService):
     async def add_memory(self, *, app_name: str, user_id: str,
                          memories: Sequence[MemoryEntry],
                          custom_metadata: Mapping[str, object] | None = None) -> None:
+        import litellm
+        from shared.config import ROUTER_BASE_URL, ROUTER_API_KEY, get_next_embedding_model
+        import os
+        key = ROUTER_API_KEY or os.environ.get("OPENAI_API_KEY", "")
+
         with psycopg.connect(self._dsn) as conn, conn.cursor() as cur:
             gid = self._group_id(cur, app_name)
             if gid is None:
@@ -66,11 +71,29 @@ class GroupMemoryService(BaseMemoryService):
                 raise PermissionError(f"{user_id} cannot write to group {app_name}")
             for mem in memories:
                 text = " ".join(p.text or "" for p in (mem.content.parts or []) if p)
+                if not text.strip():
+                    continue
                 meta = dict(custom_metadata or {}) | dict(mem.custom_metadata or {})
+
+                # Fetch embedding
+                model = get_next_embedding_model()
+                try:
+                    resp = await litellm.aembedding(
+                        model=f"openai/{model}",
+                        input=[text],
+                        api_base=ROUTER_BASE_URL,
+                        api_key=key,
+                        dimensions=768 # Force 768 to match pg schema
+                    )
+                    emb = resp.data[0].embedding
+                except Exception as e:
+                    print(f"Embedding failed ({model}): {e}")
+                    emb = None
+
                 cur.execute(
-                    "INSERT INTO agent_memory (group_id, author, content, metadata) "
-                    "VALUES (%s,%s,%s,%s)",
-                    (gid, mem.author or user_id, text, psycopg.types.json.Json(meta)),
+                    "INSERT INTO agent_memory (group_id, author, content, embedding, metadata) "
+                    "VALUES (%s,%s,%s,%s,%s)",
+                    (gid, mem.author or user_id, text, emb, psycopg.types.json.Json(meta)),
                 )
             conn.commit()
 
@@ -100,17 +123,53 @@ class GroupMemoryService(BaseMemoryService):
 
     async def search_memory(self, *, app_name: str, user_id: str,
                             query: str) -> SearchMemoryResponse:
+        import litellm
+        from shared.config import ROUTER_BASE_URL, ROUTER_API_KEY, get_next_embedding_model
+        import os
+        key = ROUTER_API_KEY or os.environ.get("OPENAI_API_KEY", "")
+
+        # Try to get query embedding
+        emb = None
+        model = get_next_embedding_model()
+        try:
+            resp = await litellm.aembedding(
+                model=f"openai/{model}",
+                input=[query],
+                api_base=ROUTER_BASE_URL,
+                api_key=key,
+                dimensions=768
+            )
+            emb = resp.data[0].embedding
+        except Exception:
+            pass
+
         # RBAC: only rows the agent may read in THIS group (app_name).
         with psycopg.connect(self._dsn) as conn, conn.cursor() as cur:
-            rows = cur.execute(
-                "SELECT m.content, m.author, m.created_at::text "
-                "FROM v_memory_readable vm "
-                "JOIN agent_memory m ON m.id = vm.id "
-                "JOIN agent_groups g ON g.id = m.group_id "
-                "WHERE vm.agent_id=%s AND g.name=%s AND m.content ILIKE %s "
-                "ORDER BY m.created_at DESC LIMIT 20",
-                (user_id, app_name, f"%{query}%"),
-            ).fetchall()
+            if emb:
+                # pgvector cosine distance (<=>)
+                # Filter by content ILIKE OR semantic similarity
+                emb_str = "[" + ",".join(str(f) for f in emb) + "]"
+                rows = cur.execute(
+                    "SELECT m.content, m.author, m.created_at::text, m.embedding <=> %s::vector AS dist "
+                    "FROM v_memory_readable vm "
+                    "JOIN agent_memory m ON m.id = vm.id "
+                    "JOIN agent_groups g ON g.id = m.group_id "
+                    "WHERE vm.agent_id=%s AND g.name=%s "
+                    "ORDER BY dist ASC LIMIT 20",
+                    (emb_str, user_id, app_name)
+                ).fetchall()
+            else:
+                # Fallback to ILIKE
+                rows = cur.execute(
+                    "SELECT m.content, m.author, m.created_at::text "
+                    "FROM v_memory_readable vm "
+                    "JOIN agent_memory m ON m.id = vm.id "
+                    "JOIN agent_groups g ON g.id = m.group_id "
+                    "WHERE vm.agent_id=%s AND g.name=%s AND m.content ILIKE %s "
+                    "ORDER BY m.created_at DESC LIMIT 20",
+                    (user_id, app_name, f"%{query}%"),
+                ).fetchall()
+
         entries = [
             MemoryEntry(content=_text_content(r[0]), author=r[1], timestamp=r[2])
             for r in rows

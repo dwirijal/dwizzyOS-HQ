@@ -30,6 +30,14 @@ def context7_toolset() -> McpToolset:
     ))
 
 
+def puppeteer_toolset() -> McpToolset:
+    """Puppeteer MCP — browser interaction and scraping."""
+    return McpToolset(connection_params=StdioServerParameters(
+        command="npx",
+        args=["-y", "@modelcontextprotocol/server-puppeteer"],
+    ))
+
+
 # lang -> list of MCP toolsets that tribe's agents get
 MCP_BY_LANG: dict[str, list] = {
     "go": [],  # Go docs via Context7 only (shared below); no lang-specific MCP

@@ -22,7 +22,8 @@ from google.adk.tools.function_tool import FunctionTool
 
 from shared.chapters import CHAPTER_BACKEND, CHAPTER_QA
 from shared.souls import soul_block
-from shared.mcp_tools import context7_toolset
+from shared.mcp_tools import context7_toolset, puppeteer_toolset
+from shared.media_tools import generate_image_tool, text_to_speech_tool, speech_to_text_tool
 from shared.github_ops import (
     gh_issue_tool, gh_branch_tool, gh_commit_push, gh_pr_tool, gh_ci_tool,
     write_ci_workflow, gh_create_branch,
@@ -54,7 +55,10 @@ class TribeConfig:
     skills: dict[str, list[str]] = None  # role -> skill names
 
 
-def _llm(model_id: str) -> LiteLlm:
+def _llm(model_id: str, is_lead: bool = False) -> LiteLlm:
+    from shared.config import is_high_capability
+    if is_lead and not is_high_capability(model_id):
+        raise ValueError(f"Lead agents must use high-capability models. '{model_id}' is not permitted.")
     key = ROUTER_API_KEY or os.environ.get("OPENAI_API_KEY", "")
     return LiteLlm(model=f"openai/{model_id}", api_base=ROUTER_BASE_URL, api_key=key)
 
@@ -119,7 +123,7 @@ def build_product_tribe(cfg: TribeConfig) -> SequentialAgent:
 
     lead = Agent(
         name=f"{cfg.name}_lead",
-        model=_llm(MODEL_LEAD),
+        model=_llm(MODEL_LEAD, is_lead=True),
         instruction=(
             f"{_skill_block(cfg.lang, 'lead')}{soul_block('lead')}"
             f"You are the {cfg.name} tribe lead (product: {cfg.product}). "
@@ -146,7 +150,9 @@ def build_product_tribe(cfg: TribeConfig) -> SequentialAgent:
         tools=[FunctionTool(_bind_cwd(write_ci_workflow, cfg.cwd, cfg.lang, "write_ci_workflow")),
                FunctionTool(_bind_cwd(gh_create_branch, cfg.cwd, cfg.lang, "gh_create_branch", base=cfg.base)),
                FunctionTool(_bind_cwd(gh_commit_push, cfg.cwd, cfg.lang, "gh_commit_push")),
-               context7_toolset()],
+               context7_toolset(),
+               puppeteer_toolset(),
+               generate_image_tool, text_to_speech_tool, speech_to_text_tool],
     )
 
     qa = Agent(

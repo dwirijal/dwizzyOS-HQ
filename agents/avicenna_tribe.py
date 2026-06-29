@@ -29,7 +29,10 @@ REPO = "dwirijal/avicenna"
 BRANCH = "ci/add-go-workflow"
 
 
-def _llm(model_id: str) -> LiteLlm:
+def _llm(model_id: str, is_lead: bool = False) -> LiteLlm:
+    from shared.config import is_high_capability
+    if is_lead and not is_high_capability(model_id):
+        raise ValueError(f"Lead agents must use high-capability models. '{model_id}' is not permitted.")
     key = ROUTER_API_KEY or os.environ.get("OPENAI_API_KEY", "")
     return LiteLlm(model=f"openai/{model_id}", api_base=ROUTER_BASE_URL, api_key=key)
 
@@ -68,7 +71,7 @@ Report the PR URL and CI result. End with PASS or FAIL.
 
 def build_tribe_avicenna() -> SequentialAgent:
     lead = Agent(
-        name="avicenna_lead", model=_llm(MODEL_LEAD),
+        name="avicenna_lead", model=_llm(MODEL_LEAD, is_lead=True),
         instruction=LEAD_INSTRUCTION, description="avicenna lead: open issue",
         tools=[gh_issue_tool],
     )

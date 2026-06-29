@@ -27,7 +27,10 @@ except Exception:
     pass
 
 
-def _llm(model_id: str) -> LiteLlm:
+def _llm(model_id: str, is_lead: bool = False) -> LiteLlm:
+    from shared.config import is_high_capability
+    if is_lead and not is_high_capability(model_id):
+        raise ValueError(f"Lead agents must use high-capability models. '{model_id}' is not permitted.")
     key = ROUTER_API_KEY or os.environ.get("OPENAI_API_KEY", "")
     return LiteLlm(model=f"openai/{model_id}", api_base=ROUTER_BASE_URL, api_key=key)
 
@@ -75,7 +78,7 @@ duplicates), not count. Report PASS/FAIL with failing checks. End with PASS or F
 
 def build_tribe_sloane() -> SequentialAgent:
     return SequentialAgent(name="tribe_sloane", sub_agents=[
-        Agent(name="sloane_lead", model=_llm(MODEL_LEAD), instruction=LEAD,
+        Agent(name="sloane_lead", model=_llm(MODEL_LEAD, is_lead=True), instruction=LEAD,
               description="tribe lead: decompose across 3 squads"),
         Agent(name="sloane_scraper", model=_llm(MODEL_WORKER), instruction=SCRAPER,
               description="squad_scraper: fetch+write+merge", tools=[fetch_tool, write_tool]),
