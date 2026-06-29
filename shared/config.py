@@ -47,10 +47,13 @@ def pg_dsn() -> str:
 
 
 # 9router as the LLM backend for all agents (OpenAI-compatible).
-ROUTER_BASE_URL = os.environ.get("ROUTER_BASE_URL", "http://192.168.100.6:20128/v1")
+ROUTER_BASE_URL = os.environ.get("ROUTER_BASE_URL", "http://localhost:20128/v1")
 ROUTER_API_KEY = os.environ.get("ROUTER_API_KEY", "")  # set in env, not committed
-MODEL_LEAD = "AGENTS-LEAD"   # Custom high-thinking model (9router)
-MODEL_WORKER = "AGENTS"      # Custom worker model (9router)
+# Model IDs that actually exist on this 9router instance (see /v1/models).
+# Override via env if the 9router instance differs. AGENTS/AGENTS-LEAD are no
+# longer registered on the local 9router — use HIGH (lead) + qwen3.7-max (worker).
+MODEL_LEAD = os.environ.get("MODEL_LEAD", "HIGH")                       # high-capability lead model
+MODEL_WORKER = os.environ.get("MODEL_WORKER", "9r/9router/R9/glm-5.2")  # worker model
 
 # Round-robin embedding models
 EMBEDDING_MODELS = [
@@ -79,7 +82,9 @@ MODELS_HIGH = {
     "openrouter/nvidia/nemotron-3-ultra-550b-a55b",
     "R9/9router/combo-qwen3.6-max", "R9/9router/combo-qwen3.7-max", "R9/9router/combo-qwen-deepseek", "R9/9router/combo-qwen-kimi-glm-deepseek",
     "R9/9router/R9/deepseek-v4-pro", "R9/9router/R9/glm-5.2", "R9/9router/R9/kimi-k2.7-code", "R9/9router/R9/qwen3.7-max",
-    "R9/9router/AGENTS-LEAD", "AGENTS-LEAD"
+    "R9/9router/AGENTS-LEAD", "AGENTS-LEAD",
+    # current local 9router instance model IDs
+    "HIGH", "9r/9router/R9/qwen3.7-max",
 }
 
 def is_high_capability(model_id: str) -> bool:
