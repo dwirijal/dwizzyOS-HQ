@@ -14,19 +14,24 @@ from shared.config import pg_dsn
 # agents can swap roles across squads. 1 squad = 1 product feature (spec).
 ORG: dict[str, dict[str, dict[str, str]]] = {
     # sloane = universal data ingestion. 3 squads: scraper/processor/store.
+    # No-merangkap: tribe_lead (sloane_lead) is NOT squad_lead. Each squad has
+    # its own squad_lead (the backend agent of that squad).
     "sloane": {
         "squad_scraper": {
             "lead": "sloane_lead",
+            "squad_lead": "sloane_scraper",
             "backend": "sloane_scraper",
             "qa": "sloane_qa",
         },
         "squad_processor": {
             "lead": "sloane_lead",
+            "squad_lead": "sloane_processor",
             "backend": "sloane_processor",
             "qa": "sloane_qa",
         },
         "squad_store": {
             "lead": "sloane_lead",
+            "squad_lead": "sloane_store",
             "backend": "sloane_store",
             "qa": "sloane_qa",
         },
@@ -34,6 +39,7 @@ ORG: dict[str, dict[str, dict[str, str]]] = {
     "avicenna": {
         "squad_avicenna": {
             "lead": "avicenna_lead",
+            "squad_lead": "avicenna_backend_go",
             "backend": "avicenna_backend_go",
             "qa": "avicenna_qa",
             "frontend": "avicenna_frontend",
@@ -43,6 +49,7 @@ ORG: dict[str, dict[str, dict[str, str]]] = {
     "jawatch": {
         "squad_catalog_ui": {
             "lead": "jawatch_lead",
+            "squad_lead": "jawatch_bff",
             "frontend": "jawatch_frontend_next",
             "backend": "jawatch_bff",
             "qa": "jawatch_qa",
@@ -52,6 +59,7 @@ ORG: dict[str, dict[str, dict[str, str]]] = {
     "heimdall": {
         "squad_auth_gateway": {
             "lead": "heimdall_lead",
+            "squad_lead": "heimdall_backend",
             "backend": "heimdall_backend",
             "qa": "heimdall_qa",
             "devops": "heimdall_devops",
@@ -61,6 +69,7 @@ ORG: dict[str, dict[str, dict[str, str]]] = {
     "gebelin": {
         "squad_infra": {
             "lead": "gebelin_lead",
+            "squad_lead": "gebelin_backend",
             "devops": "gebelin_devops",
             "backend": "gebelin_backend",
             "qa": "gebelin_qa",
@@ -108,11 +117,19 @@ def bootstrap_org(dsn: str | None = None) -> None:
                     "SELECT id FROM agent_groups WHERE name=%s", (squad,)).fetchone()[0]
                 for role, agent_id in roles.items():
                     is_lead = role == "lead"
-                    role_in_squad = "squad_lead" if is_lead else "member"
-                    cur.execute(
-                        "INSERT INTO agent_memberships (agent_id, group_id, role) "
-                        "VALUES (%s,%s,%s) ON CONFLICT (agent_id, group_id) DO NOTHING",
-                        (agent_id, sq_id, role_in_squad))
+                    # No-merangkap: 'lead' key = tribe_lead only (no squad membership).
+                    # 'squad_lead' key = the squad_lead role. Others = members.
+                    if is_lead:
+                        role_in_squad = None
+                    elif role == "squad_lead":
+                        role_in_squad = "squad_lead"
+                    else:
+                        role_in_squad = "member"
+                    if role_in_squad:
+                        cur.execute(
+                            "INSERT INTO agent_memberships (agent_id, group_id, role) "
+                            "VALUES (%s,%s,%s) ON CONFLICT (agent_id, group_id) DO NOTHING",
+                            (agent_id, sq_id, role_in_squad))
                     # tribe membership: tribe_lead (distinct from squad_lead) can write tribe
                     # memory; members read via view. ponytail: tribe_lead RBAC per spec.
                     cur.execute(

@@ -40,13 +40,59 @@ CHAPTER_FRONTEND = """\
 - Intentional design — not a default template.
 """
 
+CHAPTER_DEVOPS = """\
+[Chapter DevOps — org standard]
+- Infra safety-first: validate configs before commit, idempotent migrations, never destroy data.
+- Least-privilege secrets via env/secret manager, never hardcoded.
+- Healthchecks + restart policies on every service; pin versions.
+- Reproducible builds; surface failures loudly, never silently swallow.
+- Deploy to production is TRIBE_LEAD only — devops prepares, does not ship.
+"""
+
+CHAPTER_SECURITY = """\
+[Chapter Security — org standard]
+- Secrets never in source; rotate on any suspected exposure.
+- Validate + sanitize all input at trust boundaries (SQL injection, XSS, path traversal).
+- AuthN/AuthZ enforced on every state-changing endpoint; CSRF on forms.
+- Rate-limit + error messages that don't leak internals.
+- Cryptographic ops use vetted libs, never hand-rolled.
+- Audit log for security-sensitive actions.
+"""
+
+CHAPTER_SCRAPER = """\
+[Chapter Scraper — org standard]
+- Fetch external sources, normalize, write raw + merge to canonical.
+- Emit valid source/external_id/kind/title/url (skip malformed rows, don't crash).
+- Respect robots.txt + rate limits; idempotent rescrape.
+- You do NOT enrich or govern — other squads own those.
+"""
+
+CHAPTER_PROCESSOR = """\
+[Chapter Processor — org standard]
+- Enrich canonical entities with authoritative IDs (MAL via Jikan).
+- Enrichment ONLY — no scraping, no governance.
+- Idempotent: re-running must not duplicate registry IDs.
+- Skip + report unresolved, never crash on a bad title.
+"""
+
+CHAPTER_STORE = """\
+[Chapter Store — org standard]
+- DB governance, health, lean ratio.
+- Surface orphans + ratio, hand off; you report, you do NOT fix unprompted.
+- Idempotent schema migrations; never destructive without explicit ask.
+"""
+
 
 def chapter_for(role: str) -> str:
-    """Return the standards block for a role ('backend'|'qa'|'frontend'|'lead')."""
+    """Return the standards block for a role."""
     return {
         "backend": CHAPTER_BACKEND,
         "qa": CHAPTER_QA,
         "frontend": CHAPTER_FRONTEND,
+        "devops": CHAPTER_DEVOPS,
+        "scraper": CHAPTER_SCRAPER,
+        "processor": CHAPTER_PROCESSOR,
+        "store": CHAPTER_STORE,
         "lead": "",  # leads orchestrate, no function chapter
     }.get(role, "")
 
