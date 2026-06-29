@@ -42,10 +42,18 @@ a{color:#58a6ff}
 """
 
 
-def _q(sql, args=None):
+def _q(sql, args=None, conn=None):
+    if conn is not None:
+        with conn.cursor() as cur:
+            cur.execute(sql, args or ())
+            return cur.fetchall()
     with psycopg.connect(pg_dsn()) as c, c.cursor() as cur:
         cur.execute(sql, args or ())
         return cur.fetchall()
+
+# ponytail: render cache — page is read-only, 10s TTL kills the 5× docker-bridge
+# handshake-per-refresh lag. Drop to 0 if operators need sub-10s freshness.
+_CACHE: tuple[float, bytes] = (0.0, b"")
 
 
 def _org_panel():
@@ -146,7 +154,14 @@ class Handler(BaseHTTPRequestHandler):
             self.send_error(404)
             return
         try:
-            body = _render().encode()
+            import time
+            now = time.time()
+            ts, cached = _CACHE
+            if now - ts < 10:
+                body = cached
+            else:
+                body = _render().encode()
+                globals()["_CACHE"] = (now, body)
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))
