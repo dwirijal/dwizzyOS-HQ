@@ -43,6 +43,13 @@ def main() -> int:
     if not _within_hours():
         print("outside work hours (06-22) — skipping cycle", flush=True)
         return 0
+    # Per-group rate-limit throttle: 9router smart_toy groups share 10 req/min.
+    # Install the litellm pre_api_call hook so every LiteLlm call self-paces.
+    try:
+        from shared.model_groups import install_hook
+        install_hook()
+    except Exception as e:
+        print(f"[warn] throttle hook not installed: {e}", flush=True)
     failures: list[str] = []
     # factory tribes (in-process)
     for name in PRODUCTS:

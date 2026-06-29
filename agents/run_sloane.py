@@ -26,6 +26,11 @@ async def main() -> int:
     if not ROUTER_API_KEY and not os.environ.get("OPENAI_API_KEY"):
         print("ERROR: set OPENAI_API_KEY (9router key)", file=sys.stderr)
         return 2
+    try:
+        from shared.model_groups import install_hook
+        install_hook()
+    except Exception as e:
+        print(f"[warn] throttle hook not installed: {e}", flush=True)
     tribe = build_tribe_sloane()
     sessions = InMemorySessionService()
     memory = GroupMemoryService()
