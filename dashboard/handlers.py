@@ -302,7 +302,7 @@ def render_squad(conn, squad) -> str:
     def gates(d,t,a,q,do):
         return "".join(f"<span class='tag {'done' if g else ''}'>{n}</span>" for g,n in
                        [(d,"doc"),(t,"test"),(a,"audit"),(q,"qa"),(do,"devops")])
-    task_html = "".join(f"<tr><td>#{i}</td><td>{_esc(t)}</td><td>{_esc(a or 'unassigned')}</td><td class='{st}'>{_esc(st)}</td><td>{gates(d,t,a,q,do)}</td></tr>"
+    task_html = "".join(f"<tr><td>#{i}</td><td>{_esc(t)}</td><td>{_esc(a or 'unassigned')}</td><td class='{st}'>{_esc(st)}</td><td>{gates(d,t2,a2,q,do)}</td></tr>"
                         for i, t, a, st, d, t2, a2, q, do in tasks) or '<tr><td class="muted" colspan=5>no backlog</td></tr>'
     goals = _q(conn, "SELECT text,status FROM goals WHERE scope='squad' AND owner=%s", (squad,))
     goal_html = "".join(f'<div class="goal {"done" if st=="done" else ""}">🎯 {_esc(t)}</div>' for t, st in goals)

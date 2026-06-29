@@ -146,7 +146,7 @@ def can_use_credential(agent: str, cred: str, conn) -> tuple[bool, str]:
     }
     required = domain_skill.get(cred, set())
     if not required:
-        return True, "ok"  # unknown cred domain = allow (no policy yet)
+        return False, f"unknown credential domain '{cred}'"
     if skills & required:
         return True, "ok"
     return False, f"{agent} (role {role}) lacks expertise for credential '{cred}': needs one of {required}"
@@ -239,3 +239,29 @@ def assign_task(assigner: str, assignee: str, title: str, tribe: str,
         tid = cur.fetchone()[0]
         conn.commit()
     return {"task_id": tid, "assigner": assigner, "assignee": assignee, "scope": scope}
+
+
+def update_task_status(task_id: int, new_status: str, updater: str, conn) -> dict:
+    """Update task status. Enforces process gates before marking 'done'."""
+    with conn.cursor() as cur:
+        # Check if marking as done
+        if new_status == "done":
+            cur.execute(
+                "SELECT doc_done, test_done, audit_done, qa_done, devops_done "
+                "FROM tasks WHERE id=%s", (task_id,))
+            r = cur.fetchone()
+            if not r:
+                raise ValueError("task not found")
+            d, t, a, q, do = r
+            if not all([d, t, a, q, do]):
+                missing = [name for val, name in zip(r, ("doc", "test", "audit", "qa", "devops")) if not val]
+                raise ValueError(f"task cannot be done: missing process gates: {', '.join(missing)}")
+
+        cur.execute(
+            "UPDATE tasks SET status=%s, updated_at=now() WHERE id=%s RETURNING id",
+            (new_status, task_id))
+        tid = cur.fetchone()
+        conn.commit()
+    if not tid:
+        raise ValueError("task not found")
+    return {"task_id": task_id, "status": new_status, "updater": updater}
