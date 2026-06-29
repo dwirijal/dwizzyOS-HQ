@@ -27,10 +27,14 @@ LEGACY_TRIBES = [
 
 
 def _within_hours() -> bool:
-    """Agents work 06:00-22:00 local. Outside → skip cycle, exit 0."""
+    """Agents work 06:00-22:00 GMT+7. System clock is UTC, so compute the
+    GMT+7 hour explicitly rather than relying on the (UTC) localtime."""
     import time
-    # tm_gmtoff-aware: localtime hour in system TZ.
-    return 6 <= time.localtime().tm_hour < 22
+    utc_now = time.time() + time.localtime().tm_gmtoff  # epoch + offset of sys tz
+    # ponytail: tm_gmtoff=0 on UTC box; if box TZ ever set to +7 this still lands on +7.
+    # GMT+7 = UTC+7*3600. Floor-divide to hour-of-day.
+    h7 = int((time.time() + 7 * 3600) % 86400) // 3600
+    return 6 <= h7 < 22
 
 
 def main() -> int:
