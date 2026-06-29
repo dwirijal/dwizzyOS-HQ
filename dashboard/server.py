@@ -28,8 +28,12 @@ def _render(route: str, key: str) -> bytes:
     with psycopg.connect(pg_dsn()) as conn:
         if route == "/":
             body = handlers.render_home(conn).encode()
+        elif route == "/cto":
+            body = handlers.render_cto(conn).encode()
         elif route.startswith("/agent/"):
             body = handlers.render_agent(conn, key).encode()
+        elif route.startswith("/squad/"):
+            body = handlers.render_squad(conn, key).encode()
         elif route.startswith("/tribe/"):
             body = handlers.render_tribe(conn, key).encode()
         elif route.startswith("/chapter/"):
@@ -46,7 +50,9 @@ class Handler(BaseHTTPRequestHandler):
         try:
             if path == "/":
                 body = _render("/", "")
-            elif path.startswith(("/agent/", "/tribe/", "/chapter/")):
+            elif path == "/cto":
+                body = _render("/cto", "")
+            elif path.startswith(("/agent/", "/tribe/", "/chapter/", "/squad/")):
                 key = path.split("/", 2)[2]
                 if not key:
                     self.send_error(400); return

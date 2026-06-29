@@ -218,3 +218,62 @@ def render_chapter(conn, chapter) -> str:
 <div class="panel"><h2>📖 Chapter Rules</h2><pre style="white-space:pre-wrap;font-size:13px">{_esc(rules_text)}</pre></div>
 <div class="panel" style="margin-top:14px"><h2>👥 Members</h2>{mem_html}</div>
 </div></body></html>"""
+
+
+# === CTO PAGE (/cto) — top of hierarchy ===
+def render_cto(conn) -> str:
+    # org KPI matrix: per-tribe cycle pass + key metrics
+    kpis = _q(conn, "SELECT scope,owner,metric,target,actual FROM kpis WHERE scope='tribe' ORDER BY owner")
+    kpi_html = "".join(f"<tr><td class='tribe'>{_esc(o)}</td><td>{_esc(m)}</td><td>{_esc(t)}</td><td>{_esc(a or '—')}</td></tr>"
+                       for _, o, m, t, a in kpis)
+    # reports filed up to CTO (from tribe_lead + chapter_lead)
+    reps = _q(conn, "SELECT reporter,report_type,content,created_at FROM reports WHERE recipient='dwizzy_cto' ORDER BY created_at DESC LIMIT 20")
+    rep_html = "".join(f"<tr><td>{_esc(r)}</td><td><span class='badge'>{_esc(rt)}</span></td><td>{_esc(c[:140])}</td><td>{_esc(cr)}</td></tr>"
+                       for r, rt, c, cr in reps) or '<tr><td class="muted" colspan=4>no reports yet</td></tr>'
+    # tasks CTO assigned
+    assigned = _q(conn, "SELECT id,title,assignee,assignment_scope,status FROM tasks WHERE assigner_id='dwizzy_cto' ORDER BY id DESC LIMIT 15")
+    asg_html = "".join(f"<tr><td>#{i}</td><td>{_esc(t)}</td><td>{_esc(a)}</td><td>{_esc(s)}</td><td class='{st}'>{_esc(st)}</td></tr>"
+                       for i, t, a, s, st in assigned) or '<tr><td class="muted" colspan=5>none</td></tr>'
+    return f"""<!doctype html><html><head><meta charset=utf-8><title>CTO</title>
+<style>{CSS}</style></head><body>
+<header><h1>🏢 dwizzyOS-HQ</h1><nav><a href="/">Control Room</a> · <a href="/cto">CTO</a></nav>
+<div class="sub">CTO · top of hierarchy</div></header>
+<div class="wrap">
+<div class="panel"><h2>📊 Tribe KPI Matrix</h2><table><tr><th>Tribe</th><th>Metric</th><th>Target</th><th>Actual</th></tr>{kpi_html}</table></div>
+<div class="grid" style="margin-top:20px">
+  <div class="panel"><h2>📥 Reports to CTO</h2><table><tr><th>Reporter</th><th>Type</th><th>Content</th><th>When</th></tr>{rep_html}</table></div>
+  <div class="panel"><h2>📤 Tasks CTO Assigned</h2><table><tr><th>#</th><th>Title</th><th>Assignee</th><th>Scope</th><th>Status</th></tr>{asg_html}</table></div>
+</div>
+</div></body></html>"""
+
+
+# === SQUAD PAGE (/squad/<name>) — dev schedule + backlog + gates ===
+def render_squad(conn, squad) -> str:
+    from shared.hierarchy import SQUAD_TRIBE, github_scope
+    tribe = SQUAD_TRIBE.get(squad, "?")
+    scope = github_scope(squad)
+    sched = _q(conn, "SELECT milestone,due_at,status FROM schedules WHERE squad=%s ORDER BY id", (squad,))
+    sched_html = "".join(f"<tr><td>{_esc(m)}</td><td>{_esc(d or '—')}</td><td class='{s}'>{_esc(s)}</td></tr>"
+                         for m, d, s in sched) or '<tr><td class="muted" colspan=3>no schedule</td></tr>'
+    tasks = _q(conn,
+        "SELECT id,title,assignee,status,doc_done,test_done,audit_done,qa_done,devops_done "
+        "FROM tasks WHERE squad=%s ORDER BY priority DESC,id", (squad,))
+    def gates(d,t,a,q,do):
+        return "".join(f"<span class='tag {'done' if g else ''}'>{n}</span>" for g,n in
+                       [(d,"doc"),(t,"test"),(a,"audit"),(q,"qa"),(do,"devops")])
+    task_html = "".join(f"<tr><td>#{i}</td><td>{_esc(t)}</td><td>{_esc(a or 'unassigned')}</td><td class='{st}'>{_esc(st)}</td><td>{gates(d,t,a,q,do)}</td></tr>"
+                        for i, t, a, st, d, t2, a2, q, do in tasks) or '<tr><td class="muted" colspan=5>no backlog</td></tr>'
+    goals = _q(conn, "SELECT text,status FROM goals WHERE scope='squad' AND owner=%s", (squad,))
+    goal_html = "".join(f'<div class="goal {"done" if st=="done" else ""}">🎯 {_esc(t)}</div>' for t, st in goals)
+    return f"""<!doctype html><html><head><meta charset=utf-8><title>{_esc(squad)}</title>
+<style>{CSS}</style></head><body>
+<header><h1>🏢 dwizzyOS-HQ</h1><nav><a href="/">Control Room</a></nav>
+<div class="sub">squad · {_esc(squad)} (tribe {_esc(tribe)})</div></header>
+<div class="wrap">
+<div class="breadcrumb"><a href="/tribe/{tribe}">← {_esc(tribe)} tribe</a> · github scope: {_esc(scope['repo'])} · branch prefix {_esc(scope['branch_prefix'])}</div>
+<div class="panel"><h2>🎯 Squad Goals</h2>{goal_html or '<p class=muted>none</p>'}</div>
+<div class="grid" style="margin-top:20px">
+  <div class="panel"><h2>📅 Development Schedule</h2><table><tr><th>Milestone</th><th>Due</th><th>Status</th></tr>{sched_html}</table></div>
+  <div class="panel"><h2>📋 Backlog + Process Gates</h2><table><tr><th>#</th><th>Title</th><th>Assignee</th><th>Status</th><th>Gates</th></tr>{task_html}</table></div>
+</div>
+</div></body></html>"""
