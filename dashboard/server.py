@@ -163,7 +163,9 @@ class Handler(BaseHTTPRequestHandler):
 
 def main():
     port = int(__import__("os").environ.get("HQ_DASH_PORT", "8485"))
-    ThreadingHTTPServer(("127.0.0.1", port), Handler).serve_forever()
+    # ponytail: 0.0.0.0 = LAN access (192.168.100.6). No auth — read-only, internal network only.
+    # Add basic-auth + TLS if ever exposed beyond trusted LAN.
+    ThreadingHTTPServer(("0.0.0.0", port), Handler).serve_forever()
 
 
 if __name__ == "__main__":
