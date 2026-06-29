@@ -14,6 +14,7 @@ requiring separate pipelines. Then call build_product_tribe N times.
 from __future__ import annotations
 import os
 from dataclasses import dataclass
+from functools import partial
 
 from google.adk.agents import Agent, SequentialAgent
 from google.adk.models.lite_llm import LiteLlm
@@ -24,7 +25,7 @@ from shared.souls import soul_block
 from shared.mcp_tools import context7_toolset
 from shared.github_ops import (
     gh_issue_tool, gh_branch_tool, gh_commit_push, gh_pr_tool, gh_ci_tool,
-    write_ci_workflow,
+    write_ci_workflow, gh_create_branch,
 )
 from shared.config import ROUTER_BASE_URL, ROUTER_API_KEY, MODEL_LEAD, MODEL_WORKER
 
@@ -56,6 +57,25 @@ class TribeConfig:
 def _llm(model_id: str) -> LiteLlm:
     key = ROUTER_API_KEY or os.environ.get("OPENAI_API_KEY", "")
     return LiteLlm(model=f"openai/{model_id}", api_base=ROUTER_BASE_URL, api_key=key)
+
+
+def _bind_cwd(fn, cwd: str, lang: str, name: str, **bound):
+    """Bake cwd/base/lang into a named wrapper so the LLM never picks the path
+    (it passed repo 'dwirijal/chronos' as cwd → ENOENT). partial has no
+    __name__ so ADK misnames the tool; closures keep it. ponytail: 3 branches
+    because the 3 fns differ in which params to keep — collapse if a 4th lands.
+    """
+    if name == "write_ci_workflow":
+        def write_ci_workflow():
+            return fn(cwd=cwd, lang=lang)
+        return write_ci_workflow
+    if name == "gh_create_branch":
+        def gh_create_branch(branch: str):
+            return fn(branch=branch, cwd=cwd, base=bound.get("base", "main"))
+        return gh_create_branch
+    def gh_commit_push(message: str, files: list[str] | None = None):
+        return fn(message=message, cwd=cwd, files=files)
+    return gh_commit_push
 
 
 # ECC skill map per (lang, role). Agents get tribe+role-appropriate skills
@@ -123,8 +143,10 @@ def build_product_tribe(cfg: TribeConfig) -> SequentialAgent:
             f"3. Call `gh_commit_push` with message=\"{cfg.commit_msg}\" cwd=\"{cfg.cwd}\".\n"
             f"Report the branch name. Do NOT open the PR (QA's job)."
         ),
-        tools=[FunctionTool(write_ci_workflow), gh_branch_tool,
-               FunctionTool(gh_commit_push), context7_toolset()],
+        tools=[FunctionTool(_bind_cwd(write_ci_workflow, cfg.cwd, cfg.lang, "write_ci_workflow")),
+               FunctionTool(_bind_cwd(gh_create_branch, cfg.cwd, cfg.lang, "gh_create_branch", base=cfg.base)),
+               FunctionTool(_bind_cwd(gh_commit_push, cfg.cwd, cfg.lang, "gh_commit_push")),
+               context7_toolset()],
     )
 
     qa = Agent(
